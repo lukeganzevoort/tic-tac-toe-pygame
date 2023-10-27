@@ -47,6 +47,11 @@ class TicTacToe:
             else:
                 return jsonify({"success": False, "message": "Invalid move"})
 
+        # Flask route to get the current board layout
+        @app.route("/api/board", methods=["GET"])
+        def get_board():
+            return jsonify({"board": self.grid})
+
     # Function to draw the grid
     def draw_grid(self):
         for row in range(1, self.GRID_SIZE):
