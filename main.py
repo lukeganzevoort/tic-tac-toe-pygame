@@ -1,6 +1,9 @@
 import sys
 
 import pygame
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
 
 
 class TicTacToe:
@@ -24,6 +27,25 @@ class TicTacToe:
         self.grid = [["" for _ in range(self.GRID_SIZE)] for _ in range(self.GRID_SIZE)]
         self.player_turn = "X"
         self.game_over = False
+
+        # Flask route to make a move via API
+        @app.route("/api/move", methods=["POST"])
+        def make_move():
+            data = request.get_json()
+            row = data["row"]
+            col = data["col"]
+
+            if not self.game_over and self.grid[row][col] == "":
+                self.grid[row][col] = self.player_turn
+                self.player_turn = "O" if self.player_turn == "X" else "X"
+
+                winner = self.check_win()
+                if winner:
+                    self.game_over = True
+
+                return jsonify({"success": True, "message": "Move successful"})
+            else:
+                return jsonify({"success": False, "message": "Invalid move"})
 
     # Function to draw the grid
     def draw_grid(self):
@@ -123,7 +145,14 @@ class TicTacToe:
             pygame.display.update()
 
 
-# Create an instance of the TicTacToe class and start the game
 if __name__ == "__main__":
     game = TicTacToe()
+
+    # Run the Flask app in a separate thread
+    import threading
+
+    flask_thread = threading.Thread(target=lambda: app.run(host="0.0.0.0", port=5000))
+    flask_thread.start()
+
+    # Start the game loop
     game.play()
