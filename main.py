@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 
 import pygame
 from flask import Flask, jsonify, request
@@ -117,6 +118,7 @@ class TicTacToe:
 
     # Main game loop
     def play(self):
+        winner: Optional[str] = None
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -141,7 +143,7 @@ class TicTacToe:
             self.draw_grid()
             self.draw_xo()
 
-            if self.game_over:
+            if self.game_over and winner:
                 font = pygame.font.Font(None, 36)
                 text = font.render(f"Player {winner} wins!", True, self.LINE_COLOR)
                 text_rect = text.get_rect(center=(self.WIDTH // 2, self.HEIGHT // 2))
