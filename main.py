@@ -32,14 +32,14 @@ class TicTacToe:
         self.player_1: Optional[int] = None
         self.player_2: Optional[int] = None
 
-        @app.route("/start_game", methods=["POST"])
+        @app.route("/api/start_game", methods=["POST"])
         def start_game():
             if self.player_1 is not None and self.player_2 is not None:
                 return (
                     jsonify(
                         {
                             "message": "Cannot start game right now,"
-                            + "I'm busy with another one."
+                            + " I'm busy with another one."
                         }
                     ),
                     401,
@@ -50,7 +50,7 @@ class TicTacToe:
                 player_symbol = "X"
             else:
                 self.player_2 = user_id
-                player_symbol = "0"
+                player_symbol = "O"
                 self.player_turn = "X" if random.randint(0, 2) else "O"
                 self.game_over = False
                 self.grid = [
@@ -61,17 +61,22 @@ class TicTacToe:
         # Flask route to make a move via API
         @app.route("/api/move", methods=["POST"])
         def make_move():
+            if not (self.player_1 and self.player_2):
+                return jsonify({"message": "Waiting for other player"}), 401
             user_id = request.headers.get(
                 "X-User-Id"
             )  # Get the user ID from request headers
-            if user_id is None or user_id not in [self.player_1, self.player_2]:
-                return jsonify({"message": "Invalid or missing user ID"}), 401
+            if user_id is None:
+                return jsonify({"message": "Missing user ID"}), 401
+            user_id = int(user_id)
+            if user_id not in [self.player_1, self.player_2]:
+                return jsonify({"message": "Invalid user ID"}), 401
 
             if user_id == self.player_1 and self.player_turn == "O":
-                return jsonify({"message": "It's not your turn"})
+                return jsonify({"message": "It's not your turn"}), 401
 
             if user_id == self.player_2 and self.player_turn == "X":
-                return jsonify({"message": "It's not your turn"})
+                return jsonify({"message": "It's not your turn"}), 401
 
             data = request.get_json()
             row = data["row"]
@@ -184,11 +189,11 @@ class TicTacToe:
                             self.grid[row][col] = self.player_turn
                             self.player_turn = "O" if self.player_turn == "X" else "X"
 
-                        winner = self.check_win()
-                        if winner:
-                            self.game_over = True
-                            self.player_1 = None
-                            self.player_2 = None
+            winner = self.check_win()
+            if winner:
+                self.game_over = True
+                self.player_1 = None
+                self.player_2 = None
 
             self.screen.fill(self.WHITE)
             self.draw_grid()
