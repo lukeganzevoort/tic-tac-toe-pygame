@@ -1,4 +1,5 @@
 import time
+from typing import Optional
 
 import numpy as np
 import requests
@@ -11,10 +12,25 @@ import torch.optim as optim
 class TicTacToeEnvironment:
     def __init__(self):
         self.base_url = "http://localhost:5000"
+        self.user_id: Optional[int] = None
+        self.player_symbol: Optional[str] = None
+
+    def start_game(self):
+        response = requests.post(self.base_url + "/api/start_game")
+
+        assert response.status_code == 200, response.text
+        user_id = response.json()["user_id"]
+        player_symbol = response.json()["player_symbol"]
+        assert isinstance(user_id, int)
+        assert isinstance(player_symbol, str)
+        self.user_id = user_id
+        self.player_symbol = player_symbol
 
     def make_move(self, row: int, col: int):
         response = requests.post(
-            self.base_url + "/api/move", json={"row": row, "col": col}
+            self.base_url + "/api/move",
+            headers={"X-User-Id": str(self.user_id)},
+            json={"row": row, "col": col},
         )
 
         if response.status_code == 200:
@@ -60,15 +76,6 @@ class TicTacToeEnvironment:
         current_player = response.json()["current_player"]
         return current_player
 
-    def reset(self):
-        response = requests.post(self.base_url + "/api/reset")
-
-        if response.status_code == 200:
-            print("Reset.")
-        else:
-            print("Reset failed. Check the API endpoint or your move data.")
-            print(f"Response: {response.text}")
-
 
 # Define a Q-network
 class QNetwork(nn.Module):
@@ -99,15 +106,16 @@ class QAgent:
         self.exploration_prob = exploration_prob
 
     def select_action(self, state):
-        print(state)
         if np.random.rand() < self.exploration_prob:
             return np.random.choice(len(state))
         with torch.no_grad():
-            print(np.ndarray(state, dtype=int))
-            ten = torch.tensor([state], dtype=torch.float)
-            print(ten)
+            ten = torch.tensor(state, dtype=torch.float)
             q_values = self.q_network(ten)
-            return q_values.argmax().item()
+            mask = torch.tensor([x == 0 for x in state]).bool()
+            masked_q_values = torch.zeros(q_values.size())
+            masked_q_values[mask] = q_values[mask]
+            masked_q_values[~mask] = -1.0
+            return masked_q_values.argmax().item()
 
     def train(self, state, action, reward, next_state):
         current_q = self.q_network(torch.tensor(state, dtype=torch.float))[action]
@@ -130,11 +138,13 @@ def train_q_learning_agent():
 
     num_episodes = 10000
     for episode in range(num_episodes):
+        print("new game")
+        env.start_game()
+        time.sleep(2)
         state = env.get_state()
         done = False
 
         while not done:
-            time.sleep(1)
             action = agent.select_action(state)
             env.make_move(action // 3, action % 3)
             next_state = env.get_state()
@@ -142,9 +152,9 @@ def train_q_learning_agent():
             agent.train(state, action, reward, next_state)
             state = next_state
 
+            time.sleep(1)
             if env.is_game_over():
                 done = True
-                env.reset()
 
 
 # Training the Q-learning agent
