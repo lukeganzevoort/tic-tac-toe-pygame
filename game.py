@@ -35,5 +35,6 @@ class TicTacToe:
     def get_board(self) -> np.ndarray:
         return self.board
 
+    # TODO: Make sure this works properly in a draw
     def is_full(self) -> bool:
         return not (self.board == 0).any()
