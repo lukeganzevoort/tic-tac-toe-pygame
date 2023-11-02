@@ -17,15 +17,16 @@ class TicTacToe:
             return False
 
     def winner(self):
-        for i in range(3):
-            if np.all(self.board[i, :] == self.current_player) or np.all(
-                self.board[:, i] == self.current_player
+        for player in [1, 2]:
+            for i in range(3):
+                if np.all(self.board[i, :] == player) or np.all(
+                    self.board[:, i] == player
+                ):
+                    return player
+            if np.all(np.diag(self.board) == player) or np.all(
+                np.diag(np.fliplr(self.board)) == player
             ):
-                return self.current_player
-        if np.all(np.diag(self.board) == self.current_player) or np.all(
-            np.diag(np.fliplr(self.board)) == self.current_player
-        ):
-            return self.current_player
+                return player
         return None
 
     def get_board(self):
