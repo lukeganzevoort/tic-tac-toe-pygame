@@ -89,6 +89,8 @@ class TicTacToe:
                 winner = self.check_win()
                 if winner:
                     self.game_over = True
+                    self.player_1 = None
+                    self.player_2 = None
 
                 return jsonify({"success": True, "message": "Move successful"})
             else:

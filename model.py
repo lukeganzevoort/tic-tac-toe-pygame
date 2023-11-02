@@ -26,7 +26,7 @@ class TicTacToeEnvironment:
         self.user_id = user_id
         self.player_symbol = player_symbol
 
-    def make_move(self, row: int, col: int):
+    def make_move(self, row: int, col: int) -> bool:
         response = requests.post(
             self.base_url + "/api/move",
             headers={"X-User-Id": str(self.user_id)},
@@ -35,9 +35,11 @@ class TicTacToeEnvironment:
 
         if response.status_code == 200:
             print("Move successful.")
+            return True
         else:
             print("Move failed. Check the API endpoint or your move data.")
             print(f"Response: {response.text}")
+            return False
 
     def get_board(self) -> list[list[str]]:
         response = requests.get(self.base_url + "/api/board")
@@ -50,6 +52,10 @@ class TicTacToeEnvironment:
         assert response.status_code == 200, "Invalid response from server"
         game_over = response.json()["game_over"]
         return game_over
+    
+    def i_won(self) -> Optional[bool]:
+        
+
 
     def get_state(self) -> list[int]:
         state: list[str] = []
@@ -145,14 +151,22 @@ def train_q_learning_agent():
         done = False
 
         while not done:
-            action = agent.select_action(state)
-            env.make_move(action // 3, action % 3)
-            next_state = env.get_state()
-            reward = 0  # Define your own reward function
-            agent.train(state, action, reward, next_state)
-            state = next_state
+            if env.current_player() == env.player_symbol:
+                action = agent.select_action(state)
+                if not env.make_move(int(action // 3), int(action % 3)):
+                    continue
 
-            time.sleep(1)
+                while (
+                    not env.is_game_over() and env.current_player() != env.player_symbol
+                ):
+                    time.sleep(1)
+                next_state = env.get_state()
+                reward = 0  # Define your own reward function
+                agent.train(state, action, reward, next_state)
+                state = next_state
+            else:
+                time.sleep(1)
+
             if env.is_game_over():
                 done = True
 
