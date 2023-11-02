@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from flask import Flask, jsonify, request
 
@@ -7,10 +8,10 @@ from game import TicTacToe
 app = Flask(__name)
 
 # Dictionary to store game instances with a unique game_id
-games = {}
+games: dict[str, Any] = {}
 
 # Dictionary to store user IDs associated with game IDs
-users = {}
+users: dict[str, str] = {}
 
 
 @app.route("/start_game", methods=["POST"])
@@ -81,8 +82,8 @@ def make_move(user_id):
         )
 
 
-@app.route("/get_board/<user_id>", methods=["GET"])
-def get_board(user_id):
+@app.route("/get_status/<user_id>", methods=["GET"])
+def get_status(user_id):
     if user_id not in users:
         return jsonify({"error": "User ID not found"})
 
@@ -94,13 +95,8 @@ def get_board(user_id):
 
     game = game_data["game"]
     board = game.get_board().tolist()
-    return jsonify(
-        {
-            "board": board,
-            "player1": game_data["player1"],
-            "player2": game_data["player2"],
-        }
-    )
+
+    return jsonify({"board": board, "current_player": game.current_player})
 
 
 if __name__ == "__main__":
