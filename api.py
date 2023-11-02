@@ -49,9 +49,19 @@ def make_move(user_id):
     if game.winner() is not None:
         return jsonify({"error": "The game is already over"})
 
-    player = int(request.json.get("player"))
-    row = int(request.json.get("row"))
-    col = int(request.json.get("col"))
+    if user_id == game_data["player1"]:
+        player = 1
+    elif user_id == game_data["player2"]:
+        player = 2
+    else:
+        return jsonify({"error": "user_id is not part of this game"})
+
+    req_json = request.get_json()
+    if not isinstance(req_json, dict):
+        return jsonify({"error": "must specify row and col"})
+
+    row = int(req_json.get("row"))
+    col = int(req_json.get("col"))
 
     if player != game.current_player:
         return jsonify({"error": "It's not your turn"})
