@@ -1,21 +1,21 @@
 import uuid
-from typing import Any
+from typing import Dict, Union
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 
 from game import TicTacToe
 
-app = Flask(__name)
+app = Flask(__name__)
 
 # Dictionary to store game instances with a unique game_id
-games: dict[str, Any] = {}
+games: Dict[str, Dict[str, Union[TicTacToe, None, str]]] = {}
 
 # Dictionary to store user IDs associated with game IDs
-users: dict[str, str] = {}
+users: Dict[str, str] = {}
 
 
 @app.route("/start_game", methods=["POST"])
-def start_game():
+def start_game() -> Response:
     if len(users) % 2 == 0:
         game_id = str(uuid.uuid4())
         game = TicTacToe()
@@ -32,40 +32,48 @@ def start_game():
 
 
 @app.route("/make_move/<user_id>", methods=["POST"])
-def make_move(user_id):
+def make_move(user_id: str) -> Response:
     if user_id not in users:
         return jsonify({"error": "User ID not found"})
 
-    game_id = users.get(user_id)
-    game_data = games.get(game_id)
+    if (game_id := users.get(user_id)) is None:
+        return jsonify({"error": "User ID not assigned to game"})
 
-    if game_data is None:
+    if (game_data := games.get(game_id)) is None:
         return jsonify({"error": "Game not found for this user"})
 
-    game = game_data["game"]
-
-    if len(users) % 2 != 0:
-        return jsonify({"error": "Waiting for the second player to join"})
+    if not isinstance(game := game_data["game"], TicTacToe):
+        return jsonify({"error": "Game not set correctly."})
 
     if game.winner() is not None:
         return jsonify({"error": "The game is already over"})
 
-    if user_id == game_data["player1"]:
+    if not isinstance(player1 := game_data.get("player1"), str):
+        return jsonify({"error": "Waiting for the first player to join"})
+
+    if not isinstance(player2 := game_data.get("player2"), str):
+        return jsonify({"error": "Waiting for the second player to join"})
+
+    if user_id == player1:
         player = 1
-    elif user_id == game_data["player2"]:
+    elif user_id == player2:
         player = 2
     else:
         return jsonify({"error": "user_id is not part of this game"})
 
-    req_json = request.get_json()
-    if not isinstance(req_json, dict):
-        return jsonify({"error": "must specify row and col"})
-
-    row = int(req_json.get("row"))
-    col = int(req_json.get("col"))
-
     if player != game.current_player:
         return jsonify({"error": "It's not your turn"})
+
+    if not isinstance(req_json := request.get_json(), dict):
+        return jsonify({"error": "row and col not specified"})
+
+    if not isinstance(row := req_json.get("row"), Union[int, float]):
+        return jsonify({"error": "row must be a number"})
+    row = int(row)
+
+    if not isinstance(col := req_json.get("col"), Union[int, float]):
+        return jsonify({"error": "col must be a number"})
+    col = int(col)
 
     if not (0 <= row < 3 and 0 <= col < 3):
         return jsonify(
@@ -83,20 +91,44 @@ def make_move(user_id):
 
 
 @app.route("/get_status/<user_id>", methods=["GET"])
-def get_status(user_id):
+def get_status(user_id: str) -> Response:
     if user_id not in users:
         return jsonify({"error": "User ID not found"})
 
-    game_id = users.get(user_id)
-    game_data = games.get(game_id)
+    if (game_id := users.get(user_id)) is None:
+        return jsonify({"error": "User ID not assigned to game"})
 
-    if game_data is None:
+    if (game_data := games.get(game_id)) is None:
         return jsonify({"error": "Game not found for this user"})
 
-    game = game_data["game"]
+    if not isinstance(game := game_data["game"], TicTacToe):
+        return jsonify({"error": "Game not set correctly."}, 501)
+
     board = game.get_board().tolist()
 
-    return jsonify({"board": board, "current_player": game.current_player})
+    if not isinstance(player1 := game_data.get("player1"), str):
+        return jsonify({"error": "Waiting for the first player to join"})
+
+    if not isinstance(player2 := game_data.get("player2"), str):
+        return jsonify({"error": "Waiting for the second player to join"})
+
+    if user_id == player1:
+        player = 1
+    elif user_id == player2:
+        player = 2
+    else:
+        return jsonify({"error": "user_id is not part of this game"})
+
+    winner = game.winner()
+
+    return jsonify(
+        {
+            "board": board,
+            "current_player": game.current_player,
+            "your_player_id": player,
+            "winner": winner,
+        }
+    )
 
 
 if __name__ == "__main__":
