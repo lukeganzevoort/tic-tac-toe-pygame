@@ -23,15 +23,20 @@ def start_game() -> Optional[str]:
         return None
 
 
-def make_move(user_id: str, row: int, col: int) -> bool:
+def make_move(user_id: str, row: int, col: int) -> Optional[bool]:
     payload = {"row": row, "col": col}
     response = requests.post(f"{base_url}/make_move/{user_id}", json=payload)
     if response.status_code == 200:
         _ = response.json().get("current_player")
         return True
     else:
-        logging.warning(f"Failed to make a move. Status code: {response.status_code}")
-        return False
+        if response.json().get("error") == "Invalid move. Cell is already occupied.":
+            return False
+        logging.warning(
+            f"Failed to make a move. Status code: {response.status_code}"
+            + f"{response.json()}"
+        )
+        return None
 
 
 def get_status(user_id: str) -> Optional[tuple[Board, int, int, Optional[int]]]:
