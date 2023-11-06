@@ -18,8 +18,6 @@ class TicTacToe:
             return False
 
     def winner(self) -> Optional[int]:
-        if self.is_full():
-            return 0
         for player in [1, 2]:
             for i in range(3):
                 if np.all(self.board[i, :] == player) or np.all(
@@ -30,6 +28,8 @@ class TicTacToe:
                 np.diag(np.fliplr(self.board)) == player
             ):
                 return player
+        if self.is_full():
+            return 0
         return None
 
     def get_board(self) -> np.ndarray:
