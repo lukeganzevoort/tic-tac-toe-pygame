@@ -2,7 +2,8 @@ import time
 from typing import Optional
 
 import pygame
-import requests
+
+import api_client
 
 
 class UI:
@@ -28,7 +29,9 @@ class UI:
         self.running = True
         self.player = 1  # Assume the player is X
         self.board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
-        self.user_id = self.start_game()
+        user_id = self.start_game()
+        assert isinstance(user_id, str)
+        self.user_id = user_id
 
     # Function to draw the grid
     def draw_grid(self):
@@ -73,45 +76,40 @@ class UI:
                         o_text, (col * cell_width + cell_width // 3, row * cell_height)
                     )
 
-    # Function to make a move using the API
+    # Function to make a move using the API client
     def make_move(self, row, col):
-        response = requests.post(
-            f"http://localhost:5000/make_move/{self.user_id}",
-            json={"row": row, "col": col},
-        )
-        if response.status_code == 200:
+        if api_client.make_move(self.user_id, row, col):
             self.board[row][col] = self.player
             self.player = 3 - self.player  # Switch player
         else:
-            print(response.json(), response.status_code)
+            print("Failed to make a move.")
 
-    # Function to update the board from the API
+    # Function to update the board from the API using the API client
     def update_board(self):
-        response = requests.get(f"http://localhost:5000/get_status/{self.user_id}")
-        if response.status_code == 200:
-            data = response.json()
-            self.board = data["board"]
-            self.player = data["current_player"]
+        status = api_client.get_status(self.user_id)
+        if status:
+            board, current_player, _, _ = status
+            self.board = board
+            self.player = current_player
         else:
-            print(response.json(), response.status_code)
+            print("Failed to update the board.")
 
-    # Function to start the game and get the user_id
+    # Function to start the game and get the user_id using the API client
     def start_game(self) -> Optional[str]:
-        response = requests.post("http://localhost:5000/start_game")
-        if response.status_code == 200:
-            data = response.json()
-            return data["user_id"]
+        user_id = api_client.start_game()
+        if user_id:
+            return user_id
         else:
-            print(response.json(), response.status_code)
+            print("Failed to start the game.")
             return None
 
+    # Function to check if the game is ready using the API client
     def is_ready(self) -> bool:
-        response = requests.get(f"http://localhost:5000/ready/{self.user_id}")
-        if response.status_code == 200:
-            data = response.json()
-            return data["ready"]
+        ready = api_client.is_ready(self.user_id)
+        if ready is not None:
+            return ready
         else:
-            print(response.json(), response.status_code)
+            print("Failed to check if the game is ready.")
             return False
 
     # Main game loop
