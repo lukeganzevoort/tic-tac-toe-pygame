@@ -92,9 +92,7 @@ def make_move(user_id: str) -> tuple[Response, int]:
         )
     else:
         return (
-            jsonify(
-                {"error": "Invalid move. Cell is already occupied or the game is over"}
-            ),
+            jsonify({"error": "Invalid move. Cell is already occupied."}),
             400,
         )
 
