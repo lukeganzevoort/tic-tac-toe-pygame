@@ -1,6 +1,5 @@
 import json
 import logging
-import multiprocessing as mp
 import random
 import time
 from collections import deque
@@ -271,15 +270,5 @@ def train():
     agent.train(10)
 
 
-def train_multiple():
-    procs = []
-    for _ in range(2):
-        procs.append(mp.Process(target=train))
-    for proc in procs:
-        proc.start()
-    for proc in procs:
-        proc.join()
-
-
 if __name__ == "__main__":
-    train_multiple()
+    train()
