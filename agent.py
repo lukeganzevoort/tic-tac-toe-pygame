@@ -1,4 +1,6 @@
 import json
+import logging
+import multiprocessing as mp
 import random
 import time
 from collections import deque
@@ -108,19 +110,19 @@ class Player:
 
         return State(state)
 
-    def make_decision(self, state) -> Decision:
+    def make_decision(self, state: State) -> Decision:
         # random moves: tradeoff exploration / exploitation
         self.epsilon = 80 - self.n_games
         final_move = [0, 0, 0, 0, 0, 0, 0, 0, 0]
         if random.randint(0, 200) < self.epsilon:
             move = random.randint(0, 8)
-            final_move[move] = 1
+            prediction = torch.rand(9)
         else:
             state0 = torch.tensor(state, dtype=torch.float)
             prediction = self.model(state0)
-            prediction[state > 0] = -100
-            move = int(torch.argmax(prediction).item())
-            final_move[move] = 1
+        prediction[state > 0] = -100
+        move = int(torch.argmax(prediction).item())
+        final_move[move] = 1
 
         return Decision(final_move)
 
@@ -129,13 +131,13 @@ class Player:
         col = int(np.argmax(final_move.view(np.ndarray))) % 3
 
         while api_client.make_move(self.user_id, row, col) is not True:
-            pass
+            logging.warning("Invalid move")
 
         # Wait for next player to move
         while True:
             assert (status := api_client.get_status(self.user_id)) is not None
             board, current_player, your_player_id, winner = status
-            if winner or current_player == your_player_id:
+            if winner is not None or current_player == your_player_id:
                 break
             time.sleep(0.1)
 
@@ -269,5 +271,15 @@ def train():
     agent.train(10)
 
 
+def train_multiple():
+    procs = []
+    for _ in range(2):
+        procs.append(mp.Process(target=train))
+    for proc in procs:
+        proc.start()
+    for proc in procs:
+        proc.join()
+
+
 if __name__ == "__main__":
-    train()
+    train_multiple()
