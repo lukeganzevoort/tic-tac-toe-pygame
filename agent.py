@@ -128,15 +128,18 @@ class Player:
         row = int(np.argmax(final_move.view(np.ndarray))) // 3
         col = int(np.argmax(final_move.view(np.ndarray))) % 3
 
-        reward = api_client.make_move(self.user_id, row, col)
-        assert isinstance(reward, bool)
-        if reward:
-            reward = 0
-        else:
-            reward = -1
+        while api_client.make_move(self.user_id, row, col) is not True:
+            pass
 
-        assert (status := api_client.get_status(self.user_id)) is not None
-        board, current_player, your_player_id, winner = status
+        # Wait for next player to move
+        while True:
+            assert (status := api_client.get_status(self.user_id)) is not None
+            board, current_player, your_player_id, winner = status
+            if winner or current_player == your_player_id:
+                break
+            time.sleep(0.1)
+
+        # Set the reward based on winner
         if winner is not None:
             self.done = True
             if winner == your_player_id:
@@ -145,6 +148,8 @@ class Player:
                 reward = 0
             else:
                 reward = -10
+        else:
+            reward = 0
 
         return reward
 
