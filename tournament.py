@@ -4,10 +4,14 @@ from agent import train
 
 
 def train_multiple():
-    procs = []
-    for _ in range(2):
-        procs.append(mp.Process(target=train))
-    for proc in procs:
+    procs: dict[int, mp.Process] = {}
+    for i in range(16):
+        procs[i] = mp.Process(target=train)
+    for proc in procs.values():
         proc.start()
-    for proc in procs:
+    for proc in procs.values():
         proc.join()
+
+
+if __name__ == "__main__":
+    train_multiple()

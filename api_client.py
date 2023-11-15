@@ -23,6 +23,22 @@ def start_game() -> Optional[str]:
         return None
 
 
+def setup_game() -> Optional[tuple[str, str]]:
+    response = requests.post(f"{base_url}/setup_game")
+    if response.status_code == 200:
+        data = response.json()
+        if not isinstance(player1 := data.get("player1"), str):
+            logging.warning("Invalid 'player1' received from the API")
+            return None
+        if not isinstance(player2 := data.get("player2"), str):
+            logging.warning("Invalid 'player2' received from the API")
+            return None
+        return player1, player2
+    else:
+        logging.warning(f"Failed to setup a game. Status code: {response.status_code}")
+        return None
+
+
 def make_move(user_id: str, row: int, col: int) -> Optional[bool]:
     payload = {"row": row, "col": col}
     response = requests.post(f"{base_url}/make_move/{user_id}", json=payload)

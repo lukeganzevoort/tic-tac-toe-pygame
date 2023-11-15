@@ -62,8 +62,8 @@ class Decision(np.ndarray):
 
 
 class Player:
-    def __init__(self, model: nn.Module):
-        self.user_id: str = self.start_game()
+    def __init__(self, model: nn.Module, user_id: Optional[str] = None):
+        self.user_id: str = user_id if user_id else self.start_game()
         self.done: bool = False
         self.score: int = 0
         self.n_games: int = 0
@@ -214,8 +214,8 @@ class Agent:
     ):
         self.trainer.train_step(state, action, reward, next_state, done)
 
-    def play_game(self) -> int:
-        player = Player(self.model)
+    def play_game(self, user_id: Optional[str] = None) -> int:
+        player = Player(self.model, user_id)
         done: bool = False
         score: int = 0
         # while not done:
@@ -232,13 +232,18 @@ class Agent:
             self.remember(state, final_move, reward, new_state, done)
         return score
 
-    def train(self, n_games: int):
+    def train(
+        self,
+        n_games: int,
+        run_again_if_winning: bool = False,
+        user_id: Optional[str] = None,
+    ):
         plot_progress = PlotProgress()
         record: int = 0
         score: int = 0
 
         for _ in range(n_games):
-            score = self.play_game()
+            score = self.play_game(user_id)
             self.n_games += 1
             self.train_long_memory()
 
@@ -247,6 +252,9 @@ class Agent:
                 # self.model.save()
 
             plot_progress.add_score(score)
+
+        if run_again_if_winning and score > 0:
+            self.train(n_games, run_again_if_winning)
 
 
 class PlotProgress:
@@ -267,7 +275,7 @@ class PlotProgress:
 
 def train():
     agent = Agent()
-    agent.train(10)
+    agent.train(10, True)
 
 
 if __name__ == "__main__":
