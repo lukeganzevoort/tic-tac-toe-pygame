@@ -9,10 +9,15 @@ class TicTacToe:
         self.board: np.ndarray = np.zeros((3, 3), dtype=int)
         self.current_player: int = random.choice([1, 2])
 
-    def move(self, row: int, col: int) -> bool:
+    def move(self, row: int, col: int, player: int) -> bool:
+        assert (
+            player == self.current_player
+        ), f"You played out of turn! {player} {self.current_player}"
         if self.board[row, col] == 0 and self.winner() is None:
             self.board[row, col] = self.current_player
             self.current_player = 3 - self.current_player
+            if self.winner() is not None:
+                self.current_player = 0
             return True
         else:
             return False

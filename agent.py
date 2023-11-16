@@ -114,7 +114,6 @@ class Player:
         self.epsilon = 80 - self.n_games
         final_move = [0, 0, 0, 0, 0, 0, 0, 0, 0]
         if random.randint(0, 200) < self.epsilon:
-            move = random.randint(0, 8)
             prediction = torch.rand(9)
         else:
             state0 = torch.tensor(state, dtype=torch.float)
@@ -252,9 +251,6 @@ class Agent:
                 # self.model.save()
 
             plot_progress.add_score(score)
-
-        if run_again_if_winning and score > 0:
-            self.train(n_games, run_again_if_winning)
 
 
 class PlotProgress:

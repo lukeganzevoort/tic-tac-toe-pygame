@@ -44,6 +44,23 @@ def setup_game() -> tuple[Response, int]:
     return jsonify({"game_id": game_id, "player1": player_1, "player2": player_2}), 200
 
 
+@app.route("/set_match/<player1>/<player2>", methods=["POST"])
+def set_match(player1: str, player2: str) -> tuple[Response, int]:
+    game_id = str(uuid.uuid4())
+
+    games[game_id] = {"game": TicTacToe(), "player1": player1, "player2": player2}
+    users[player1] = game_id
+    users[player2] = game_id
+
+    return jsonify({"game_id": game_id, "player1": player1, "player2": player2}), 200
+
+
+@app.route("/get_winner/<game_id>", methods=["GET"])
+def get_winner(game_id: str) -> tuple[Response, int]:
+    winner = games[game_id]["game"].winner()
+    return jsonify(winner), 200
+
+
 @app.route("/make_move/<user_id>", methods=["POST"])
 def make_move(user_id: str) -> tuple[Response, int]:
     if user_id not in users:
