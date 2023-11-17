@@ -20,6 +20,7 @@ Losses = int
 Ties = int
 
 PlayerID = int
+RoundMatches = list[tuple[PlayerID, PlayerID]]
 
 State = np.ndarray
 Move = np.ndarray
@@ -51,6 +52,12 @@ class Agent:
     @property
     def n_games(self):
         return sum(self.record)
+
+    @property
+    def win_rate(self) -> float:
+        if self.n_games == 0:
+            return 0.0
+        return (self.wins + 0.5 * self.ties) / self.n_games
 
     def reset(self):
         self.last_state = None
@@ -148,7 +155,7 @@ class Agent:
 
         if done:
             self.train_long_memory()
-            self.plot_progress.add_score(reward)
+            # self.plot_progress.add_score(reward)
 
             if winner == self.player:
                 self.wins += 1
@@ -186,17 +193,41 @@ class Agent2:
         self.players[p2].game = game
         self.players[p2].player = 2
 
+    def round_robin_schedule(self) -> list[RoundMatches]:
+        """Generates a round-robin schedule for a list of players."""
+        player_ids: list[PlayerID] = list(self.players.keys())
+        schedule: list[RoundMatches] = []
+
+        if len(player_ids) % 2:
+            # If the number of players is odd, add a dummy player for bye rounds
+            player_ids.append(-1)
+
+        for i in range(len(player_ids) - 1):
+            round_matches: RoundMatches = []
+            for j in range(len(player_ids) // 2):
+                round_matches.append((player_ids[j], player_ids[-j - 1]))
+            player_ids.insert(1, player_ids.pop())  # Rotate the list of players
+            schedule.append(round_matches)
+
+        return schedule
+
+    def run_round(self, round_matches: RoundMatches):
+        for match in round_matches:
+            if -1 in match:  # This is a bye
+                continue
+            self.start_match(*match)
+
+        while len(self.games) > 0:
+            self.play_turns()
+
     def play_turns(self):
         player: Agent
         state: State
         move: Move
 
-        print(self.games)
-
         # Play a turn
         for game, (p1, p2) in self.games.items():
             if game.current_player == 0:
-                print("Game finished")
                 continue
             elif game.current_player == 1:
                 player = self.players[p1]
@@ -208,7 +239,6 @@ class Agent2:
             state = player.get_state_pov()
 
             if player.last_state is not None and player.last_move is not None:
-                print("Training")
                 player.calculate_reward_and_train()
 
             move = player.get_action(state)
@@ -228,19 +258,46 @@ class Agent2:
                 self.players[p2].calculate_reward_and_train()
                 self.players[p2].reset()
 
+    def get_leader_board(self) -> list[Agent]:
+        return list(
+            sorted(self.players.values(), key=lambda x: x.win_rate, reverse=True)
+        )
+
+    def print_leader_board(self):
+        print("PlayerID   PCT  Wins  Losses  Ties")
+        for player in self.get_leader_board():
+            print(
+                f"{player.player_id:8}"
+                + f"  {player.win_rate:.2f}"
+                + f"{player.wins:6}"
+                + f"{player.losses:8}"
+                + f"{player.ties:6}"
+            )
+
 
 def main():
     agent = Agent2(8)
+    schedule = agent.round_robin_schedule()
 
-    while True:
-        agent.start_match(0, 1)
-        agent.start_match(2, 3)
-        agent.start_match(4, 5)
-        agent.start_match(6, 7)
+    for _ in range(20):
+        random.shuffle(schedule)
 
-        while len(agent.games) > 0:
-            print("Play next turn")
-            agent.play_turns()
+        for rnd in schedule:
+            agent.run_round(rnd)
+
+        agent.print_leader_board()
+
+    return
+
+
+# Example usage:
+# players = ["A", "B", "C", "D", "E"]
+# schedule = round_robin(players)
+
+# for round_number, matches in enumerate(schedule, 1):
+#     print(f"Round {round_number}:")
+#     for match in matches:
+#         print(f"{match[0]} vs {match[1]}")
 
 
 if __name__ == "__main__":
