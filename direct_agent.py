@@ -3,6 +3,7 @@ from collections import deque
 from typing import Optional
 
 import numpy as np
+import pygame
 import torch
 
 # from recorder import GIFMaker
@@ -169,6 +170,205 @@ class Agent:
         return None
 
 
+class UI(Agent):
+    def __init__(self, player_id: int):
+        pygame.init()
+
+        # Define the screen dimensions
+        self.SCREEN_WIDTH, self.SCREEN_HEIGHT = 600, 600
+        self.SCREEN_SIZE = (self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
+
+        # Colors
+        self.WHITE = (255, 255, 255)
+        self.LINE_COLOR = (0, 0, 0)
+
+        # Initialize the screen
+        self.screen = pygame.display.set_mode(self.SCREEN_SIZE)
+        pygame.display.set_caption("Tic-Tac-Toe")
+
+        # Font
+        self.font = pygame.font.Font(None, 120)
+
+        # Game variables
+        self.running = True
+        self.board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        self.game: Optional[TicTacToe] = None
+        self.player: Optional[int] = None
+
+        super().__init__(player_id)
+
+    # Function to draw the grid
+    def draw_grid(self):
+        cell_width = self.SCREEN_WIDTH // 3
+        cell_height = self.SCREEN_HEIGHT // 3
+
+        # Vertical lines
+        for x in range(1, 3):
+            pygame.draw.line(
+                self.screen,
+                self.LINE_COLOR,
+                (cell_width * x, 0),
+                (cell_width * x, self.SCREEN_HEIGHT),
+                2,
+            )
+
+        # Horizontal lines
+        for y in range(1, 3):
+            pygame.draw.line(
+                self.screen,
+                self.LINE_COLOR,
+                (0, cell_height * y),
+                (self.SCREEN_WIDTH, cell_height * y),
+                2,
+            )
+
+    # Function to draw X and O
+    def draw_x_o(self):
+        cell_width = self.SCREEN_WIDTH // 3
+        cell_height = self.SCREEN_HEIGHT // 3
+
+        for row in range(3):
+            for col in range(3):
+                if self.board[row][col] == 1:
+                    x_text = self.font.render("X", True, self.LINE_COLOR)
+                    self.screen.blit(
+                        x_text, (col * cell_width + cell_width // 3, row * cell_height)
+                    )
+                elif self.board[row][col] == 2:
+                    o_text = self.font.render("O", True, self.LINE_COLOR)
+                    self.screen.blit(
+                        o_text, (col * cell_width + cell_width // 3, row * cell_height)
+                    )
+
+    # Function to make a move using the API client
+    def make_move(self, row, col):
+        assert self.game
+        assert self.player
+        assert self.game.move(row, col, self.player)
+
+    # Function to update the board from the API using the API client
+    def update_board(self):
+        assert self.game
+        self.board = self.game.board.tolist()
+
+    # Main game loop
+    def run(self):
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    # Get the clicked cell
+                    x, y = event.pos
+                    col = x // (self.SCREEN_WIDTH // 3)
+                    row = y // (self.SCREEN_HEIGHT // 3)
+
+                    # Check if the cell is empty
+                    if self.board[row][col] == 0:
+                        self.make_move(row, col)
+
+            self.update_board()  # Update the board from the API
+
+            # Clear the screen
+            self.screen.fill(self.WHITE)
+
+            # Draw the grid
+            self.draw_grid()
+
+            # Draw X and O
+            self.draw_x_o()
+
+            # Update the display
+            pygame.display.update()
+
+        pygame.quit()
+
+    def reset(self):
+        self.last_state = None
+        self.last_move = None
+        self.game = None
+        self.player = None
+
+    def get_state_pov(self) -> np.ndarray:
+        assert self.game
+        assert self.player
+        board = self.game.board.flatten()
+        if self.player == 1:
+            pass
+        elif self.player == 2:
+            board[board > 0] = 3 - board[board > 0]
+        else:
+            raise ValueError("Invalid player", self.player)
+        return np.array(board, dtype=int)
+
+    def remember(self, state, action, reward, next_state, done):
+        pass
+
+    def train_long_memory(self):
+        pass
+
+    def train_short_memory(self, state, action, reward, next_state, done):
+        pass
+
+    def get_action(self, state: np.ndarray) -> np.ndarray:
+        running: bool = True
+        col, row = 0, 0
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    # Get the clicked cell
+                    x, y = event.pos
+                    col = x // (self.SCREEN_WIDTH // 3)
+                    row = y // (self.SCREEN_HEIGHT // 3)
+
+                    # Check if the cell is empty
+                    if self.board[row][col] == 0:
+                        # self.make_move(row, col)
+                        running = False
+
+            self.update_board()  # Update the board from the API
+
+            # Clear the screen
+            self.screen.fill(self.WHITE)
+
+            # Draw the grid
+            self.draw_grid()
+
+            # Draw X and O
+            self.draw_x_o()
+
+            # Update the display
+            pygame.display.update()
+
+        # pygame.quit()
+
+        final_move = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        move = row * 3 + col
+        final_move[move] = 1
+
+        return np.array(final_move)
+
+    def calculate_reward_and_train(self) -> Optional[int]:
+        assert self.game is not None
+
+        winner = self.game.winner()
+        done = winner is not None
+
+        if done:
+            if winner == self.player:
+                self.wins += 1
+                return 1
+            elif winner > 0:
+                self.losses += 1
+                return -1
+            else:
+                self.ties += 1
+                return 0
+        return None
+
+
 # Tournament holds games
 # Players get games from tournament
 # Players are the API - make a move given X
@@ -276,16 +476,24 @@ class Agent2:
 
 
 def main():
-    agent = Agent2(8)
+    agent = Agent2(32)
     schedule = agent.round_robin_schedule()
 
-    for _ in range(20):
+    for _ in range(10):
         random.shuffle(schedule)
 
         for rnd in schedule:
             agent.run_round(rnd)
 
         agent.print_leader_board()
+
+    top_agent = agent.get_leader_board()[0]
+    print(top_agent.win_rate)
+    agent.players[-1] = UI(-1)
+    while True:
+        agent.start_match(top_agent.player_id, -1)
+        while len(agent.games) > 0:
+            agent.play_turns()
 
     return
 
